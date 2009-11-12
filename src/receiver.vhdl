@@ -39,61 +39,77 @@ end entity;
 ---------------------------------------------------------------------------
 Architecture receiver_1 of receiver is
 ---------------------------------------------------------------------------
-     constant count_08 : unsigned 
-           := to_unsigned(7, integer(ceil(log2(real(TX_SIZE * 2)))));
-     constant count_16 : unsigned 
-           := to_unsigned(15, integer(ceil(log2(real(TX_SIZE * 2)))));
+     --constant count_08 : unsigned 
+           --:= to_unsigned(7, integer(ceil(log2(real(TX_SIZE * 2)))));
+     --constant count_16 : unsigned 
+           --:= to_unsigned(15, integer(ceil(log2(real(TX_SIZE * 2)))));
 
     type t_state is (s_wait, s_start, s_receive, s_done);
 
-    signal data_register : std_logic_vector((TX_SIZE - 1) downto 0);
+    signal dr      : std_logic_vector((TX_SIZE - 1) downto 0);
+    signal dr_next : std_logic_vector((TX_SIZE - 1) downto 0);
+
+    --state registers
     signal s_cur         : t_state := s_wait;
     signal s_nxt         : t_state := s_wait;
-    signal counter       : unsigned(integer(ceil(log2(real(TX_SIZE)))) downto 0) 
+
+    --counter registers
+    signal c_cur         : unsigned(integer(ceil(log2(real(TX_SIZE)))) downto 0) 
                          := (others => '0');
-    signal bit_count     : unsigned(integer(ceil(log2(real(TX_SIZE)))) downto 0) 
+    signal c_nxt         : unsigned(integer(ceil(log2(real(TX_SIZE)))) downto 0) 
                          := (others => '0');
+
+    --bit_count registers
+    signal bc_cur         : unsigned(integer(ceil(log2(real(TX_SIZE)))) downto 0) 
+                          := (others => '0');
+    signal bc_nxt         : unsigned(integer(ceil(log2(real(TX_SIZE)))) downto 0) 
+                          := (others => '0');
+
 begin
     process(clk)
     begin
         if(clk'event and clk='1') then
             s_cur <= s_nxt;
-            if(s_cur = s_wait) then
-                counter <= (others => '0');
-                data_register <= data;
-                bit_count <= (others => '0'); 
-                data_register <= (others => '0');
-            elsif(s_cur = s_start) then
-                data_register <= rxd & data_register((TX_SIZE -1) downto 0);
-            elsif(s_cur = s_receive) and (count = count_16) then
-                counter <= (others => '0');
-                bit_count <= bit_count + 1;
-                data_register <= rx_d & data_register((TX_SIZE -1) downto 0);
-            elsif(s_cur = s_receive and (count /= count_16) then
-                counter <= counter + 1;
-            end if;
+            c_cur <= c_nxt;
+            bc_cur <= bc_nxt;
+            dr <= dr_next;
         end if;
     end process;
 
-    process(s_cur, s_nxt, bit_count, counter, data_register)
+    process(s_cur, s_nxt, bc_cur, c_cur, data, dr)
     begin
         case s_cur is
             when s_wait =>
                 if(rx_d = '0') then
                     s_nxt <= s_start;
+                    dr_next <= (other => '0');
                 end if;
             when s_start =>
-                if(data_register /= (others => 0)) then
-                    s_nxt <= s_wait;
-                else
-                    s_nxt <= s_receive;
+                if(c_cur = 7) then
+                    dr_next <= rx_d & dr(7 downto 1);
+                    if(rx_d = '1') then
+                        s_nxt <= s_wait;
+                    else
+                        s_nxt <= s_receive;
+                        bc_nxt <= (others => '0');
+                        c_nxt <= (others => '0');
+                    end if;
                 end if;
+                c_nxt <= c_cur + 1;
             when s_receive =>
-                if(bit_count = count_08) then
-                    s_nxt <= s_done;
+                if(c_cur = 15) then
+                    bc_nxt <= bc_cur + 1;
+                    dr_next <= rx_d & dr(7 downto 1);
+                    if(bc_cur = TX_SIZE) then
+                        s_nxt <= s_done;
+                        c_nxt <= (others => '0');
+                    end if;
+                else
+                    c_nxt <= c_cur + 1;
                 end if;
+
             when s_done =>
-                if(counter = count_16) then
+                if(counter = 15) then
                     s_nxt <= s_wait;
                 end if;
         end case;
