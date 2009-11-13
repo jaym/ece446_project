@@ -44,7 +44,7 @@ Architecture receiver_1 of receiver is
      --constant count_16 : unsigned 
            --:= to_unsigned(15, integer(ceil(log2(real(TX_SIZE * 2)))));
 
-    type t_state is (s_wait, s_start, s_receive, s_done);
+    type t_state is (s_wait, s_start, s_receive, s_done, s_err);
 
     signal dr      : std_logic_vector((TX_SIZE - 1) downto 0);
     signal dr_next : std_logic_vector((TX_SIZE - 1) downto 0);
@@ -76,13 +76,13 @@ begin
         end if;
     end process;
 
-    process(s_cur, s_nxt, bc_cur, c_cur, data, dr)
+    process(s_cur, s_nxt, bc_cur, c_cur, dr, rx_d)
     begin
         case s_cur is
             when s_wait =>
                 if(rx_d = '0') then
                     s_nxt <= s_start;
-                    dr_next <= (other => '0');
+                    dr_next <= (others => '0');
                 end if;
             when s_start =>
                 if(c_cur = 7) then
@@ -94,26 +94,49 @@ begin
                         bc_nxt <= (others => '0');
                         c_nxt <= (others => '0');
                     end if;
+                  else
+                    c_nxt <= c_cur + 1;
                 end if;
-                c_nxt <= c_cur + 1;
+                
             when s_receive =>
                 if(c_cur = 15) then
                     bc_nxt <= bc_cur + 1;
                     dr_next <= rx_d & dr(7 downto 1);
-                    if(bc_cur = TX_SIZE) then
+                    c_nxt <= (others => '0');
+                    if(bc_cur = TX_SIZE -1) then
                         s_nxt <= s_done;
-                        c_nxt <= (others => '0');
                     end if;
                 else
                     c_nxt <= c_cur + 1;
                 end if;
 
             when s_done =>
-                if(counter = 15) then
-                    s_nxt <= s_wait;
+                if(c_cur = 15) then
+                    if(rx_d = '0') then
+                        s_nxt <= s_err;
+                    else
+                        s_nxt <= s_wait;
+                    end if;
                 end if;
+                c_nxt <= c_cur + 1;
+            when s_err =>
+                s_nxt <= s_err;
         end case;
+    end process;
 
+    process(s_cur)
+    begin
+        case s_cur is
+            when s_wait | s_start =>
+                rdy <= '1';
+                ferr <= '0';
+            when s_receive | s_done =>
+                rdy <= '0';
+                ferr <= '0';
+            when s_err =>
+                rdy <= '0';
+                ferr <= '1';
+        end case;
     end process;
 
 end architecture receiver_1;
