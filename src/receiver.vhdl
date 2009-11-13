@@ -130,13 +130,16 @@ begin
             when s_wait | s_start =>
                 rdy <= '1';
                 ferr <= '0';
+                data <= dr;
             when s_receive | s_done =>
                 rdy <= '0';
                 ferr <= '0';
             when s_err =>
                 rdy <= '0';
                 ferr <= '1';
+                data <= dr;
         end case;
     end process;
+
 
 end architecture receiver_1;
