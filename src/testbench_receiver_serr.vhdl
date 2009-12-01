@@ -1,7 +1,7 @@
 ---------------------------------------------------------------------------
 -- Author(s)   : Jay Mundrawala <mundra@ir.iit.edu>
 -- 
--- File          : testbench_receiver.vhdl
+-- File          : testbench_receiver_serr.vhdl
 -- Creation Date : 13/11/2009
 -- Description: 
 --
@@ -12,13 +12,13 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.numeric_std.all;
 
 ---------------------------------------------------------------------------
-Entity testbench_receiver is 
+Entity testbench_receiver_serr is 
 ---------------------------------------------------------------------------
 end entity;
 
 
 ---------------------------------------------------------------------------
-Architecture testbench_receiver_1 of testbench_receiver is
+Architecture testbench_receiver_serr_1 of testbench_receiver_serr is
 ---------------------------------------------------------------------------
     constant T_R : time := 10 ns;
     constant T_T : time := 160 ns;
@@ -46,22 +46,11 @@ begin
     end process;
 
     process
-        variable data_in : std_logic_vector(7 downto 0) := X"A4";
+        variable data_in : std_logic_vector(7 downto 0) := X"AA";
     begin
         rx_d <= '0';
-        wait for T_T;
-        for i in 0 to 7 loop
-            rx_d <= data_in(i);
-            wait for T_T;
-        end loop;
+        wait for T_T/4;
         rx_d <= '1';
-        wait until rdy = '1' or ferr='1';
-        assert data = X"A4"
-            report "Incorrectly Received"
-            severity error;
-        assert ferr = '0'
-            report "FERR != 0"
-            severity error;
         wait for T_T;
         assert false
             report "End of Simulation"
@@ -70,5 +59,5 @@ begin
 
         
 	
-end architecture testbench_receiver_1;
+end architecture testbench_receiver_serr_1;
 

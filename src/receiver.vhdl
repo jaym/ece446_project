@@ -94,13 +94,13 @@ begin
                 end if;
             when s_start =>
                 if(c_cur = 7) then
-                    dr_next <= rx_d & dr(7 downto 1);
                     if(rx_d = '1') then
                         s_nxt <= s_wait;
                     else
                         s_nxt <= s_receive;
                         bc_nxt <= (others => '0');
                         c_nxt <= (others => '0');
+                        dr_next <= rx_d & dr(7 downto 1);
                     end if;
                   else
                     c_nxt <= c_cur + 1;
