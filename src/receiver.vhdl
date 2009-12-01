@@ -29,6 +29,7 @@ Entity receiver is
     (
         clk   : in  std_logic;
         rx_d  : in  std_logic;
+        reset : in  std_logic;
 
         data  : out std_logic_vector((TX_SIZE -1) downto 0);
         rdy   : out std_logic;
@@ -69,10 +70,17 @@ begin
     process(clk)
     begin
         if(clk'event and clk='1') then
-            s_cur <= s_nxt;
-            c_cur <= c_nxt;
-            bc_cur <= bc_nxt;
-            dr <= dr_next;
+            if(reset = '1') then
+                s_cur  <= s_wait;
+                c_cur  <= (others => '0');
+                bc_cur <= (others => '0');
+                dr     <= (others => '0');
+            else
+                s_cur <= s_nxt;
+                c_cur <= c_nxt;
+                bc_cur <= bc_nxt;
+                dr <= dr_next;
+            end if;
         end if;
     end process;
 
@@ -120,7 +128,11 @@ begin
                 end if;
                 c_nxt <= c_cur + 1;
             when s_err =>
-                s_nxt <= s_err;
+                if(c_cur = 15) then
+                    s_nxt <= s_wait;
+                else
+                    c_nxt <= c_cur + 1;
+                end if;
         end case;
     end process;
 

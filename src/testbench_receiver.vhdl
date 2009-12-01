@@ -30,6 +30,7 @@ begin
     port map(
         clk   => clk,
         rx_d  => rx_d,
+        reset => '0',
 
         data  => data,
         rdy   => rdy,
@@ -45,7 +46,7 @@ begin
     end process;
 
     process
-        variable data_in : std_logic_vector(7 downto 0) := X"99";
+        variable data_in : std_logic_vector(7 downto 0) := X"AA";
     begin
         rx_d <= '0';
         wait for T_T;
@@ -53,13 +54,15 @@ begin
             rx_d <= data_in(i);
             wait for T_T;
         end loop;
-        wait until rdy = '1';
+        rx_d <= '1';
+        wait until rdy = '1' or ferr='1';
         assert data = X"AA"
             report "Incorrectly Received"
             severity error;
         assert ferr = '0'
             report "FERR != 0"
             severity error;
+        wait for T_T;
         assert false
             report "End of Simulation"
             severity failure;

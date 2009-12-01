@@ -31,6 +31,7 @@ begin
     port map(
         clk   => clk_r,
         rx_d  => rx_d,
+        reset => '0',
 
         data  => data,
         rdy   => rdy_r,
@@ -42,6 +43,7 @@ begin
         clk   => clk_t,
         start => start,
         data  => data_in,
+        reset => '0',
 
         tx_d  => rx_d,
         rdy   => rdy_t 

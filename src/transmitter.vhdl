@@ -31,6 +31,7 @@ Entity transmitter is
     (
         clk   : in std_logic;
         start : in std_logic;
+        reset : in std_logic;
         data  : in std_logic_vector((TX_SIZE -1) downto 0);
 
         tx_d  : out std_logic;
@@ -55,13 +56,18 @@ begin
     process(clk)
     begin
         if(clk'event and clk='1') then
-            s_cur <= s_nxt;
-            if(s_cur = s_wait) then
+            if(reset = '1') then
+                s_cur <= s_wait;
                 count <= (others => '0');
-                data_register <= data;
-            elsif(s_cur = s_send) and (count /= count_high) then
-                count <= count + 1;
-                data_register <= '1' & data_register((TX_SIZE - 1) downto 1);
+            else 
+                s_cur <= s_nxt;
+                if(s_cur = s_wait) then
+                    count <= (others => '0');
+                    data_register <= data;
+                elsif(s_cur = s_send) and (count /= count_high) then
+                    count <= count + 1;
+                    data_register <= '1' & data_register((TX_SIZE - 1) downto 1);
+                end if;
             end if;
         end if;
     end process;
