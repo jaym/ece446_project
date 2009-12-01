@@ -65,7 +65,7 @@ begin
         out_clk1   => clk_1,
         out_clk10  => clk_10,
         out_clk16  => clk_16,
-        out_clk160 => clk_16
+        out_clk160 => clk_160
     );
 
     process(s)
