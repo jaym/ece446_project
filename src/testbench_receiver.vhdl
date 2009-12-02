@@ -23,6 +23,7 @@ Architecture testbench_receiver_1 of testbench_receiver is
     constant T_R : time := 10 ns;
     constant T_T : time := 160 ns;
     signal clk, rdy, ferr : std_logic;
+    signal sclk : std_logic;
     signal rx_d : std_logic := '1';
     signal data : std_logic_vector(7 downto 0);
 begin
@@ -46,8 +47,18 @@ begin
     end process;
 
     process
+    begin
+        sclk <= '0';
+        wait for T_T/2;
+        sclk <= '1';
+        wait for T_T/2;
+    end process;
+
+    process
         variable data_in : std_logic_vector(7 downto 0) := X"A4";
     begin
+        rx_d <= '1';
+        wait for T_T;
         rx_d <= '0';
         wait for T_T;
         for i in 0 to 7 loop

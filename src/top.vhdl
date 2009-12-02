@@ -24,7 +24,8 @@ Entity top is
             rdy_r : out std_logic;
             rx_ferr: out std_logic;
             rdy_t : out std_logic;
-            s : in std_logic
+            s : in std_logic;
+            reset : in std_logic
         );
 end entity;
 
@@ -43,6 +44,7 @@ begin
     port map(
         clk   => clk_rx,
         rx_d  => rx_d,
+        reset => reset,
 
         data  => rx_data,
         rdy   => rdy_r,
@@ -54,6 +56,7 @@ begin
         clk   => clk_tx,
         start => start,
         data  => data_in,
+        reset => reset,
 
         tx_d  => tx_d,
         rdy   => rdy_t 
@@ -68,7 +71,7 @@ begin
         out_clk160 => clk_160
     );
 
-    process(s)
+    process(s,clk_16,clk_1,clk_10,clk_160)
     begin
         if(s = '0') then
             clk_rx <= clk_16;

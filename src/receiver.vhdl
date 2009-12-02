@@ -91,6 +91,11 @@ begin
                 if(rx_d = '0') then
                     s_nxt <= s_start;
                     dr_next <= (others => '0');
+                else
+                    s_nxt <= s_cur;
+                    bc_nxt <= (others => '0');
+                    c_nxt <= (others => '0');
+                    dr_next <= dr;
                 end if;
             when s_start =>
                 if(c_cur = 7) then
@@ -113,6 +118,8 @@ begin
                     c_nxt <= (others => '0');
                     if(bc_cur = TX_SIZE -1) then
                         s_nxt <= s_done;
+                    else 
+                        s_nxt <= s_cur;
                     end if;
                 else
                     c_nxt <= c_cur + 1;
@@ -136,7 +143,7 @@ begin
         end case;
     end process;
 
-    process(s_cur)
+    process(s_cur, dr)
     begin
         case s_cur is
             when s_wait | s_start =>
@@ -146,6 +153,7 @@ begin
             when s_receive | s_done =>
                 rdy <= '0';
                 ferr <= '0';
+                data <= dr;
             when s_err =>
                 rdy <= '0';
                 ferr <= '1';
