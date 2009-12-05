@@ -55,7 +55,7 @@ begin
     end process;
 
     process
-        variable data_in : std_logic_vector(7 downto 0) := X"A4";
+        variable data_in : std_logic_vector(7 downto 0) := X"55";
     begin
         rx_d <= '1';
         wait for T_T;
