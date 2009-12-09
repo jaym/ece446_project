@@ -1,0 +1,431 @@
+\documentclass[12pt, a4paper]{article}
+
+\usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry}
+%\usepackage{setspace}
+%\onehalfspacing
+\usepackage{graphicx}
+\usepackage{float}
+
+\usepackage{subfig}
+\usepackage{amsmath}
+\usepackage{url}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{multirow}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{wrapfig}
+
+
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+
+\begin{document}
+
+\begin{titlepage}
+
+  \begin{center}
+  \textsc{\Large ECE 446-01 Final Project}\\[0.5cm]
+
+
+  % Title
+  \HRule \\[0.4cm]
+  { \huge \bfseries Asynchronous Serial Communication}\\[0.4cm]
+  \small \url{http://github.com/whois/ece446_project}
+  \HRule \\[1.5cm]
+
+\end{center}
+
+  \begin{minipage}{0.4\textwidth}
+    \begin{flushleft} \large
+      \emph{Author:}\\
+      Jay \textsc{Mundrawala}
+    \end{flushleft}
+  \end{minipage} \\[0.4cm]
+
+
+  \vfill
+
+  \begin{minipage}{0.9\textwidth}
+    \begin{flushright} \large
+      \emph{Due Date:} \\
+      December 9, 2009      
+    \end{flushright}
+  \end{minipage}
+
+%\end{center}
+
+\end{titlepage}
+\tableofcontents
+\newpage
+
+\begin{abstract}
+  This paper describes the implementation of a simple data communication system using the
+  RS-232 protocol and the Xilinx Spartan 3E experimental board.
+\end{abstract}
+\section{Introduction}
+The objective of this project is to become familiar with data communication concepts. This project
+involves the implementation of an asynchronous serial data communication protocol, RS-232. This is
+done using the Xilinx Spartan 3E experimental board.
+
+Figure \ref{fig:sys_blk} shows the entire system. It consists of a transmitter, receiver, clock generator,
+RS-232 voltage converter, LCD module, and a set of switches. The transmitter is responsible for
+taking one byte of data and transmitting over a serial line. It is connected to a voltage converter.
+The RS-232 protocol specifies that a logic H is transmitted as -5V, while a logic L is transmitter as
+5V. The converter is responsible for taking care of this, and is provided on the Spartann 3E experimental
+board.\cite{xilinxug} The receiver takes data from the serial line and stores it. Once a byte has been received, it
+is available to be retrieved. The clock generator is used to generate the appropriate clocks. For
+the transmitter, it generates a clock that is 16 times slower than that of the receiver. The clock
+generator has a control input which allows the selection of transmitting at 1bps or 10bps. The LCD
+module displays the data on the transmit lines, and the data that has been received by the receiver.
+The switches are used to control the circuit.
+
+\begin{figure}
+  \caption{System Block Diagram}
+  \centering
+  \includegraphics[width=0.8\textwidth]{images/sys_block.eps}
+  \label{fig:sys_blk}
+\end{figure}
+
+
+\section{Asynchronous Transmitter/Receiver}
+\subsection{Asynchronous Transmitter}
+The transmitter, as described above, takes one byte of data, and shifts it onto the serial data
+transmission line at its given clock rate. For this project, it can have either a 1Hz clock running
+it, or a 10Hz clock.
+\subsubsection{Block Diagram}
+Figure \ref{fig:tran_blk} shows the block diagram for the transmitter. The transmitter has three inputs
+and two outputs. Data is a one byte value that contains the data to be transmitted. Start tells the
+transmitter to begin transmission. CLK is used to time the transmission of data. Tx\_D is the serial line
+onto which the data is shifted. RDY specifies that the transmitter is not sending anything and
+is ready to send another byte of data.
+
+\subsubsection{Algorithm and Flowchart}
+\begin{figure}
+  \caption{Transmitter Block Diagram}
+  \centering
+  \includegraphics{images/transmitter_block}
+  \label{fig:tran_blk}
+\end{figure}
+\begin{figure}
+  \centering
+  \includegraphics[width=0.25\textwidth]{images/transmitter_fc.eps}
+  \caption{Transmitter Flowchart}
+  \label{fig:tran_fc}
+\end{figure}
+Figure \ref{fig:tran_fc} shows the flowchart for the transmitter block. The algorithm is very simple. 
+The idea here is that when the user requests that data be transmitted,
+it first gets latched internally. This way, external changes can be ignored. The first thing the 
+transmitter must send is a start bit, which is 0. The transmitter outputs a 0 for RDY and until
+the data has been transmitted. The internal counter is reset at this point. Next, 1 bit is transmitted
+at each of the next 8 clock cycles. Next, a stop bit is transmitted, its value being 1. After this,
+the transmitter starts over and awaits the next start signal from the user. The following is the 
+pseudocode:
+%\begin{algorithm}
+  %\caption{Transmitter algorithm}
+  %\label{alg:tran}
+\begin{algorithmic}
+  \LOOP
+    \STATE $TX\_D \gets 1$
+    \STATE $RDY \gets 1$
+    \IF {$start = 1$}
+    \IF{ $CLK=1$}
+        \STATE $TX\_D \gets 0$ \COMMENT {Send start bit}
+        \STATE $RDY \gets 0$
+        \STATE $bitcount:=0$
+        \STATE $data \gets input$ \COMMENT {Latch Data}
+        \WHILE{$bitcount \neq 8$}
+            \IF {$CLK = 1$}
+                \STATE $TX\_D \gets data(0)$ \COMMENT {Transfer LSB}
+                \STATE $RDY \gets 0$
+                \STATE $bitcount = bitcount + 1$
+                \STATE $data \gets 1$ \& data(7 downto 1) \COMMENT {Shift}
+              \ENDIF
+        \ENDWHILE
+        \IF{$CLK = 1$}
+            \STATE $TX\_D \gets 1$ \COMMENT {Send stop bit}
+            \STATE $RDY \gets 0$
+          \ENDIF
+      \ENDIF
+    \ENDIF
+  \ENDLOOP
+\end{algorithmic}
+%\end{algorithm}
+
+\subsubsection{VHDL Implementation}
+\lstset{ %
+language=VHDL,                % choose the language of the code
+basicstyle=\footnotesize,
+numbers=left,                   % where to put the line-numbers
+stepnumber=1,                   % the step between two line-numbers. If it's 1 each line will be numbered
+numbersep=10pt,                  % how far the line-numbers are from the code
+showspaces=false,               % show spaces adding particular underscores
+showstringspaces=false,         % underline spaces within strings
+showtabs=false,                 % show tabs within strings adding particular underscores
+frame=none,	                % adds a frame around the code
+tabsize=2,	                % sets default tabsize to 2 spaces
+captionpos=b,                   % sets the caption-position to bottom
+breaklines=true,                % sets automatic line breaking
+breakatwhitespace=false        % sets if automatic breaks should only happen at whitespace
+}
+\lstset{caption=Transmitter,label=lst:tran}
+\lstinputlisting{src/transmitter.vhdl}
+
+\subsubsection{Simulation}
+Figure \ref{fig:transsim} shows the simulation results. Listing \ref{lst:trantb} shows the testbench
+used to run this simulation.
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=1.0\textwidth]{images/transsim.eps}
+  \caption{Transmitter Simulation Waveform}
+  \label{fig:transsim}
+\end{figure}
+
+
+\subsection{Asynchronous Receiver}
+The receiver reads data off of the serial line one bit at a time. These bits are shifted into a register,
+and once eight data bits have been read, the data becomes ready. The receiver will output a frame error in
+the case that the final bit is not the value of the designated stop bit.
+\subsubsection{Block Diagram}
+Figure \ref{fig:rec_blk} shows the block diagram for the receiver. It has two inputs. First, RX\_D. RX\_D is
+the line used for serial communication. Next, there is CLK. CLK is a clock that pulses 16 times faster than
+the transmitters clock. The data is then sampled after 8 ticks. The reason for this is so that the data on
+the serial line is stable by the time that it is sampled. The DATA line is used to output the byte read on
+RX\_D. RDY indicates that the receiver is ready to receive more data. FERR indicates that there has been a
+framing error while receiving the data.
+\begin{figure}[H]
+  \caption{Receiver Block Diagram}
+  \centering
+  \includegraphics{images/receiver_bock}
+  \label{fig:rec_blk}
+\end{figure}
+\subsubsection{Algorithm and Flowchart}
+Figure \ref{fig:rec_fc} shows the flowchart for the asynchronous receiver. The algorithm is not much more
+complicated than that of the transmitter. The FSM begins by outputing $RDY=1$ and $FERR=0$ to indicate that
+the receiver is ready to receive and no error is present. It then waits for a falling edge on RX\_D. This
+indicates that a start bit was sent to the receiver. After the falling edge is detected, the FSM waits for
+8 clock cycles, and then samples RX\_D. This gives enough time for RX\_D to stabalize. If RX\_D is still low,
+it means that this is very likely a legitimate data transfer. Otherwise, the receiver will go back to searching
+for a falling edge on RD\_D. If RX\_D was low, the receiver will initialize two counters. One ticks at every 
+clock cycle. This clock is used to determine when it is appropriate to sample that data, and in this case
+is every 16 ticks. The second counter ticks once after each bit has been sampled. This is used to keep
+track of when it is time to search for the stop bit. If the stop bit is not 1, FERR goes high for 16 clock cycles.
+This is not shown in the FSM, however a error state was added that lasts 16 clock cycles in order to see
+the frame error. If RX\_D did equal one, the receiver can go back to waiting for more data. The following is
+the psuedocode for the receiver:
+\begin{algorithmic}
+  \LOOP
+    \STATE $RDY \gets 1$
+    \STATE $FERR \gets 0$
+    \IF{ $CLK = 1$ } 
+    \IF{ $RX\_D = 0$}
+        \STATE WAIT 8 CLK CYCLES
+        \IF{ $RX\_D = 0$}
+            \STATE $RDY \gets 0$
+            \STATE $FERR \gets 0$
+            \STATE $bitcount:=0$
+            \WHILE{ $bitcount < 8$}
+                \STATE WAIT 16 CLK CYCLES
+                \STATE $data \gets $ data(7 downto 1) \& RX\_D
+                \STATE $bitcount = 0$
+            \ENDWHILE
+            \IF{$RX\_D = 0$}
+                \STATE $FERR \gets 1$
+                \STATE WAIT 16 CLK CYCLES
+            \ENDIF
+        \ENDIF
+    \ENDIF
+    \ENDIF
+  \ENDLOOP
+\end{algorithmic}
+
+\begin{figure}[H]
+  \caption{Receiver Block Diagram}
+  \centering
+  \includegraphics{images/receiver_fc.eps}
+  \label{fig:rec_fc}
+\end{figure}
+\subsubsection{VHDL Implementation}
+\lstset{caption=Receiver,label=lst:rec}
+\lstinputlisting{src/receiver.vhdl}
+
+\subsubsection{Simulation}
+Figure \ref{fig:recsim} shows the simulation results. Listing \ref{lst:rectb} shows the testbench
+used to run this simulation.
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=1.0\textwidth]{images/receivsim.eps}
+  \caption{Receiver Simulation Waveform}
+  \label{fig:recsim}
+\end{figure}
+
+\subsection{LCD Display Module}
+The LCD available on the Spartan3E starter board is a 2-line by 16-character LCD. It is controlled through
+a 4 bit interface, along with an enable, register select, and R/W line, named LCD\_E, LCD\_RS, and LCD\_RW.
+LCD\_E is the Read/Write enable pusle. LCD\_RS selects the register, 0 being the instruction register during
+write operations, and 1 being data for read or write operations. LCD\_RW will write on 0, and read on 1 into
+the flash  memory.\cite{xilinxug}
+
+\subsection{Resources}
+\begin{tabular}{c | c | c | c}
+  Occupied Slices Used & Occupied Slices Available & 4 Input LUTs Used & 4 Input LUTs available \\ \hline
+  374 & 4656 & 681 & 9312 \\
+\end{tabular}
+\section{Discussion}
+\subsection{Design Challenges}
+One of the main challenges was getting a design that properly simulated to synthesize correctly. It seems there are
+a few guidelines you have to follow in order for a design to be synthesizable and function correctly. Unfortunately,
+have to keep synthesizing a design and testing it is a time consuming task. ModelSim provides an option to check
+whether a design is synthesizable.\cite{modelsim} The ``-check\_synthesis'' flag is used to do this. It also happened that 
+ModelSim's tests passed, and the design still did not function correctly on the board. It seems that warnings for
+Xilin's XST can cause a design to malfunction. Its very important to check the output for latch warnings, which
+seem to occur when an output is not assigned under all conditions.\cite{xilinx} Once these problems were taken care of, the
+design functioned correctly.
+
+An issue that came up during the testing phase was that of FERR. The initial design did not account for that fact that
+the clock in the receiver is pulsing 16 times faster than the clock in the transmitter. Initially, the receiver would
+only output a FERR for one of its clock cycles. This meant that when transferring 1bps, it would only last for $1/16^{th}$
+of a second. This was overcome by having the receiver stay in an error state for 16 clock cycles, which was good enough
+for transferring at 1bps. A better design would have been selecting a longer wait state when choosing the 10bps transfer rate.
+
+\section{Suggestions}
+There are many possible additions for this project. The system can be expanded in many ways. One important addition would be
+to store the received data and status bits in a register. This register could be cleared once the user has read from it. This
+would also give the ability to add additional status signals for things like notification of writing over an unread byte of
+data.
+
+Additionally, error correcting codes could be added to the design. There are two possible ways to approach this. First, it
+could be a purely software approach in which the programmer is required to check for errors. A better approach would be to
+implement in hardware. To do this, the number of data bits sent per transaction would need to be increased. A problem here
+might be in interfacing with existing devices. Looking through the man pages for stty, there does not seem to be a way
+of increasing the number of data bits per transaction past 8. We can either use multiple transactions, or, settle for
+error detection using a parity bit, which is an option. The following is a portion of the stty man pages that would
+be relevant in making design considerations if interfacing with the computer was important:
+\begin{verbatim}
+   Special settings:
+       N      set the input and output speeds to N bauds
+
+       * cols N
+              tell the kernel that the terminal has N columns
+
+       * columns N
+              same as cols N
+
+       ispeed N
+              set the input speed to N
+
+       * line N
+              use line discipline N
+
+       min N  with -icanon, set N characters minimum for a completed read
+
+       ospeed N
+              set the output speed to N
+
+       * rows N
+              tell the kernel that the terminal has N rows
+
+       * size print the number of rows and columns according to the kernel
+
+       speed  print the terminal speed
+
+       time N with -icanon, set read timeout of N tenths of a second
+
+   Control settings:
+       [-]clocal
+              disable modem control signals
+
+       [-]cread
+              allow input to be received
+
+       * [-]crtscts
+              enable RTS/CTS handshaking
+
+       csN    set character size to N bits, N in [5..8]
+
+       [-]cstopb
+              use two stop bits per character (one with `-')
+
+       [-]hup send a hangup signal when the last process closes the tty
+
+       [-]hupcl
+              same as [-]hup
+
+       [-]parenb
+              generate parity bit in output and expect parity bit in input
+
+       [-]parodd
+              set odd parity (even with `-')
+\end{verbatim}
+The man pages say that the size can be set anywhere for 5 to 8. Since 12 bits are needed for one byte of data
+to support error correction, a good solution would be to create a protocol on top of RS232. It can specify
+that 1 byte is sent in 2 packets, requiring two transactions. Making some sort of software library would be
+a good idea as the communication protocol can be modulated.
+
+Based on the man pages, its seems that implementing the handshaking mechanism would also be wise, especially if
+interfacing with a user. Using a clock rate of 1 and 10 hz for transmission isnt really practical, so implementing
+this would be nice.
+
+\section{Alternative Serial Communication Systems}
+This section discusses alternative serial communication systems.
+\subsection{USB}
+USB, like RS-232, is used to provide serial communication between a host and devices. USB provides speeds of 1.5Mbps,
+12Mbps, and 140Mbps. Unlike RS-232, USB defines an application layer.
+\subsection{SATA}
+SATA, or serial advanced technology attachment, is a computer bus used for communicating between a host and mass
+storage device. SATA is currently on its third generation and capable of operating at speeds up to 6Mbps. Whlie
+conventional hard drives have no use for speeds of 6Mbps, sold state hard drives do. As they have no moving parts,
+they have the capability of operating at this speed.
+operates at 10Mbps.
+
+\section{Conclusion}
+This paper has described the implementation of a simple RS-232 based UART system. In it, a receiver and transmitter
+have been described. 
+
+\section{Additional Code}
+\lstset{caption=Receiver Testbench,label=lst:rectb}
+\lstinputlisting{src/testbench_receiver.vhdl}
+
+\lstset{caption=System Testbench,label=lst:trantb}
+\lstinputlisting{src/testbench_txrx.vhdl}
+
+\lstset{caption=Clock Generator,label=lst:cg}
+\lstinputlisting{src/clock_gen.vhdl}
+
+\lstset{caption=Top Module,label=lst:top}
+\lstinputlisting{src/top.vhdl}
+
+
+%\section{Code}
+%\lstset{ %
+%language=VHDL,                % choose the language of the code
+%basicstyle=\footnotesize,
+%numbers=left,                   % where to put the line-numbers
+%stepnumber=1,                   % the step between two line-numbers. If it's 1 each line will be numbered
+%numbersep=10pt,                  % how far the line-numbers are from the code
+%showspaces=false,               % show spaces adding particular underscores
+%showstringspaces=false,         % underline spaces within strings
+%showtabs=false,                 % show tabs within strings adding particular underscores
+%frame=shadowbox,	                % adds a frame around the code
+%tabsize=2,	                % sets default tabsize to 2 spaces
+%captionpos=b,                   % sets the caption-position to bottom
+%breaklines=true,                % sets automatic line breaking
+%breakatwhitespace=false        % sets if automatic breaks should only happen at whitespace
+%}
+
+%\lstset{caption=PreLab Part 1,label=lst:p1}
+%\lstinputlisting{src/d2a.m}
+
+%\lstset{caption=Prelab Part 2,label=lst:p2}
+%\lstinputlisting{src/counter.vhdl}
+
+%%\lstset{caption=8 bit Fast Adder}
+%%\lstinputlisting{./FastAdder8.vhd}
+
+%%\lstset{caption=Testbench Module,label=lst:tb}
+%%\lstinputlisting{./Testbench.vhd} 
+
+\nocite{*}
+\bibliographystyle{plain}
+\bibliography{project}
+\end{document}
+

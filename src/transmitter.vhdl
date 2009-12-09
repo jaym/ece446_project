@@ -56,16 +56,19 @@ begin
     process(clk)
     begin
         if(clk'event and clk='1') then
-            if(reset = '1') then
+            if(reset = '1') then --synchronous reset
                 s_cur <= s_wait;
                 count <= (others => '0');
             else 
-                s_cur <= s_nxt;
+                s_cur <= s_nxt; 
                 if(s_cur = s_wait) then
                     count <= (others => '0');
                     data_register <= data;
                 elsif(s_cur = s_send) and (count /= count_high) then
+                    -- While data bits + stop bit have not been sent
                     count <= count + 1;
+                    -- Shift in 1 so an extra state is not needed for
+                    -- stop bit.
                     data_register <= '1' & data_register((TX_SIZE - 1) downto 1);
                 end if;
             end if;
@@ -77,15 +80,15 @@ begin
         case s_cur is
             when s_wait =>
                 if(start = '1') then
-                    s_nxt <= s_start;
+                    s_nxt <= s_start; -- Start is signaled, go to transmit
                 else
-                    s_nxt <= s_wait;
+                    s_nxt <= s_wait; -- Nothing to do
                 end if;
             when s_start =>
-                s_nxt <= s_send;
+                s_nxt <= s_send; -- Send the actual data
             when s_send =>
                 if(count = count_high) then
-                    s_nxt <= s_wait;
+                    s_nxt <= s_wait; --All bits have been transfered, including stop bit
                 end if;
         end case;
     end process;
@@ -102,7 +105,7 @@ begin
                 rdy  <= '0';
             when s_send =>
                 rdy  <= '0';
-                tx_d <= data_register(0);
+                tx_d <= data_register(0); -- bits 0 to 8(stop bit)
         end case;
     end process;
 
